@@ -136,7 +136,7 @@ snd_pcm_format_t WavPlayer::convertBitsToPcmFormat(const unsigned char bits)
 
 void WavPlayer::play(const char* _filename)
 {
-	snd_pcm_uframes_t count {}, frames {};
+	register snd_pcm_uframes_t count {}, frames {};
 
 	load(_filename);
 
@@ -157,12 +157,7 @@ void WavPlayer::play(const char* _filename)
 	else
 		log_write("File not loaded correctly");
 
-	// clear data
-	buf.data.reset();
-	buf.data = nullptr;
-	memset(&fmt,0,sizeof(WavFmtHeader));
 }
-
 
 
 } /* namespace Audio */

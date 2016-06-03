@@ -15,11 +15,29 @@ AudioBase::AudioBase(const char* _name) : name{_name}
 }
 
 
-void AudioBase::abort(int err)
+char* AudioBase::decode_err(int err)
 {
-	log_write( "Error: ");
-	log_writeln(snd_strerror(err) );
-	throw std::string(snd_strerror(err));
+	return strerror(err);
+}
+
+
+const char* AudioBase::decode_snd_err(int err)
+{
+	return snd_strerror(err);
+}
+
+
+void AudioBase::abort(const char* decodedError)
+{
+	log_write("Error: ");
+	log_writeln(decodedError);
+	throw std::string(decodedError);
+}
+
+
+void AudioBase::abort()
+{
+	throw std::string("");
 }
 
 
@@ -27,7 +45,7 @@ void AudioBase::opendev(snd_pcm_stream_t stream, int mode)
 {
 	int err = snd_pcm_open(&soundDevice, name, stream, mode);
 	if(err < 0)
-		abort(err);
+		abort(decode_snd_err(err));
 
 	allocateDefault();
 }
@@ -37,11 +55,11 @@ void AudioBase::allocateDefault()
 {
 	int err = snd_pcm_hw_params_malloc(&hwParams);
 	if(err < 0)
-		abort(err);
+		abort(decode_snd_err(err));
 
 	err = snd_pcm_hw_params_any(soundDevice, hwParams);
 	if(err < 0)
-		abort(err);
+		abort(decode_snd_err(err));
 }
 
 
@@ -49,7 +67,7 @@ void AudioBase::setAccess(snd_pcm_access_t access)
 {
 	int err = snd_pcm_hw_params_set_access(soundDevice, hwParams, access);
 	if(err < 0)
-		abort(err);
+		abort(decode_snd_err(err));
 }
 
 
@@ -57,7 +75,7 @@ void AudioBase::setFormat(snd_pcm_format_t format)
 {
 	int err = snd_pcm_hw_params_set_format(soundDevice, hwParams, format);
 	if(err < 0)
-		abort(err);
+		abort(decode_snd_err(err));
 }
 
 
@@ -65,7 +83,7 @@ void AudioBase::setChannels(Channels channels)
 {
 	int err = snd_pcm_hw_params_set_channels(soundDevice, hwParams, static_cast<unsigned int>(channels));
 	if(err < 0)
-		abort(err);
+		abort(decode_snd_err(err));
 }
 
 
@@ -73,7 +91,7 @@ void AudioBase::setRateNear(unsigned int val, int dir)
 {
 	int err = snd_pcm_hw_params_set_rate_near(soundDevice, hwParams, &val, &dir);
 	if(err < 0)
-		abort(err);
+		abort(decode_snd_err(err));
 }
 
 
@@ -83,7 +101,7 @@ void AudioBase::setParams(snd_pcm_format_t format, snd_pcm_access_t access, Chan
 	int err = snd_pcm_set_params(soundDevice, format, access,
 				static_cast<unsigned int>(channels), rate, soft_resample, latency);
 	if(err < 0)
-		abort(err);
+		abort(decode_snd_err(err));
 }
 
 
@@ -148,7 +166,7 @@ void AudioBase::start()
 {
 	int err = snd_pcm_hw_params(soundDevice, hwParams);
 	if(err < 0)
-		abort(err);
+		abort(decode_snd_err(err));
 }
 
 
@@ -186,7 +204,7 @@ snd_pcm_access_t AudioBase::getAccess()
 	snd_pcm_hw_params_get_access(hwParams, &access);
 
 	if(!((access >= 0) && (access <= SND_PCM_ACCESS_LAST)))
-		abort(static_cast<int>(access));
+		abort(decode_snd_err(static_cast<int>(access)));
 
 	return access;
 }

@@ -36,9 +36,14 @@ public:
 
 
 	/**
-	 * \ Abort function, make extension if error code is existing
+	 * \ Abort functions, make extension if error code is existing
 	 */
-	void abort(int err = -1);
+	char* decode_err(int err);
+	const char* decode_snd_err(int err);
+
+	void abort(const char* decodedError);
+	void abort();
+
 
 
 	/**
