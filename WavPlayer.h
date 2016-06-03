@@ -62,14 +62,14 @@ typedef struct WavChunkHeader
 
 
 // WAVE fmt chunk
-typedef struct WavFmtParam {
-	short			wFormatTag;
-	unsigned short	wChannels;
-	unsigned int	dwSamplesPerSec;
-	unsigned int	dwAvgBytesPerSec;
-	unsigned short	wBlockAlign;
-	unsigned short	wBitsPerSample;
-} WavFmtParam;
+typedef struct WavFmtHeader {
+	short			audioFormat;
+	unsigned short	channels;
+	unsigned int	sampleRate;
+	unsigned int	byteRate;
+	unsigned short	blockAlign;
+	unsigned short	bitsPerSample;
+} WavFmtHeader;
 
 #pragma pack()
 
@@ -116,10 +116,8 @@ typedef struct Buffer
 
 class WavPlayer : public Player, public AudioBase
 {
-	unsigned char waveBits {};
-	unsigned short waveRate {};
-	Channels waveChannels {};
 	snd_pcm_uframes_t waveSize {};
+	WavFmtHeader fmt {};
 
 	const char *filename { nullptr };
 	Buffer buf {nullptr, 0};
@@ -159,6 +157,6 @@ public:
 	void play(const char* _filename) override;
 };
 
-} /* namespace Sound */
+} /* namespace Audio */
 
 #endif /* WAVPLAYER_H_ */

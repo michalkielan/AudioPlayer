@@ -11,7 +11,7 @@
 #include <alsa/asoundlib.h>
 #include "Logger.h"
 #include <iostream>
-
+#include <memory>
 
 namespace Audio {
 
@@ -26,8 +26,6 @@ enum class Channels : unsigned int
  */
 class AudioBase
 {
-//	std::shared_ptr<snd_pcm_t *> soundDevice;
-//	std::shared_ptr<snd_pcm_hw_params_t *> hwParams;
 	snd_pcm_t* soundDevice { nullptr };
 	snd_pcm_hw_params_t* hwParams { nullptr };
 	const char* name { nullptr };
@@ -36,26 +34,24 @@ public:
 
 	AudioBase(const char* _name);
 
-	snd_pcm_hw_params_t* getParamStructure() const;
-
-
-	snd_pcm_t* getDeviceStructure() const;
-
 
 	/**
 	 * \ Abort function, make extension if error code is existing
 	 */
 	void abort(int err = -1);
 
+
 	/**
 	 * \ Open device
 	 */
 	void opendev(snd_pcm_stream_t stream, int mode = 0);
 
+
 	/**
 	 * \ Allocate hardware param memory and set the default values
 	 */
 	void allocateDefault();
+
 
 	/**
 	 * \
@@ -98,6 +94,11 @@ public:
 	 */
 	snd_pcm_sframes_t writeNonInterleaved(void** buffer, snd_pcm_uframes_t size);
 
+
+	/**
+	 * \ Write
+	 */
+	snd_pcm_sframes_t write(void* buffer, snd_pcm_uframes_t size);
 
 	/**
 	 * \
@@ -150,7 +151,7 @@ public:
 	/**
 	 * \
 	 */
-	snd_pcm_access_t getAccess() const;
+	snd_pcm_access_t getAccess();
 
 	/*
 	 *
@@ -158,6 +159,6 @@ public:
 	virtual ~AudioBase();
 };
 
-} /* namespace Sound */
+} /* namespace Audio */
 
 #endif /* AUDIOBASE_H_ */

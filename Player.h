@@ -20,6 +20,6 @@ public:
 	virtual ~Player();
 };
 
-} /* namespace Sound */
+} /* namespace Audio */
 
 #endif /* PLAYER_H_ */

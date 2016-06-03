@@ -50,6 +50,9 @@ void WavPlayer::load(const char* _filename)
 
 	fs.open(filename, std::fstream::in);
 
+	if(!fs.is_open())
+		abort();
+
 	if(!isWavFile(fs))
 		abort();
 
@@ -59,11 +62,9 @@ void WavPlayer::load(const char* _filename)
 
 		if(id == "fmt ")
 		{
-			WavFmtParam fmt;
-
-			if(fs.read(reinterpret_cast<char *>(&fmt), sizeof(WavFmtParam)))
+			if(fs.read(reinterpret_cast<char *>(&fmt), sizeof(WavFmtHeader)))
 			{
-				if(fmt.wFormatTag != 1)
+				if(fmt.audioFormat != 1)
 				{
 					log_writeln("Compressed WAVE not supported yet");
 					abort();
@@ -72,10 +73,6 @@ void WavPlayer::load(const char* _filename)
 
 			else
 				break;
-
-			waveBits = static_cast<unsigned char>(fmt.wBitsPerSample);
-			waveRate = static_cast<unsigned short>(fmt.dwSamplesPerSec);
-			waveChannels = static_cast<Channels>(fmt.wChannels);
 		}
 
 		else if (id == "data")
@@ -92,7 +89,7 @@ void WavPlayer::load(const char* _filename)
 			fs.read(buf.data.get(), buf.len - offsite);	/// TODO - wtf with len
 
 			if(fs)
-				waveSize = (buf.len * 8) / ( static_cast<unsigned int>(waveBits) * static_cast<unsigned int>(waveChannels) );
+				waveSize = (buf.len * 8) / ( static_cast<unsigned int>(fmt.bitsPerSample) * static_cast<unsigned int>(fmt.channels) );
 
 			else
 			{
@@ -102,7 +99,8 @@ void WavPlayer::load(const char* _filename)
 		}
 	}
 
-	setParams(convertBitsToPcmFormat(waveBits), SND_PCM_ACCESS_RW_INTERLEAVED, waveChannels, waveRate, 1, 500000);
+	setParams(convertBitsToPcmFormat(fmt.bitsPerSample), SND_PCM_ACCESS_RW_INTERLEAVED,
+			static_cast<Channels>(fmt.channels), static_cast<unsigned short>(fmt.byteRate), 1, 500000);
 }
 
 
@@ -140,27 +138,31 @@ void WavPlayer::play(const char* _filename)
 {
 	snd_pcm_uframes_t count {}, frames {};
 
-	load( _filename);
+	load(_filename);
 
 	if(buf.data.get() != nullptr)
 	{
 		do
 		{
-			frames = writeInterleaved(buf.data.get() + count, waveSize - count);
+			frames = write(buf.data.get() + count, waveSize - count);
 			count += frames;
 
 		} while (count < waveSize);
 
 		// Wait for playback to completely finish
-		if (count == waveSize)
+		if (count >= waveSize)
 			stopPresentingFrames();
 	}
 
 	else
 		log_write("File not loaded correctly");
 
+	// clear data
+	buf.data.reset();
+	buf.data = nullptr;
+	memset(&fmt,0,sizeof(WavFmtHeader));
 }
 
 
 
-} /* namespace Sound */
+} /* namespace Audio */

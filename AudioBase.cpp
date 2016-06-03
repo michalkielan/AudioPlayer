@@ -15,18 +15,6 @@ AudioBase::AudioBase(const char* _name) : name{_name}
 }
 
 
-snd_pcm_hw_params_t* AudioBase::getParamStructure() const
-{
-	return hwParams;
-}
-
-
-snd_pcm_t* AudioBase::getDeviceStructure() const
-{
-	return soundDevice;
-}
-
-
 void AudioBase::abort(int err)
 {
 	log_write( "Error: ");
@@ -92,7 +80,7 @@ void AudioBase::setRateNear(unsigned int val, int dir)
 void AudioBase::setParams(snd_pcm_format_t format, snd_pcm_access_t access, Channels channels,
 		unsigned int rate, int soft_resample, unsigned int latency)
 {
-	int err = snd_pcm_set_params(getDeviceStructure(), format, access,
+	int err = snd_pcm_set_params(soundDevice, format, access,
 				static_cast<unsigned int>(channels), rate, soft_resample, latency);
 	if(err < 0)
 		abort(err);
@@ -101,7 +89,7 @@ void AudioBase::setParams(snd_pcm_format_t format, snd_pcm_access_t access, Chan
 
 snd_pcm_sframes_t AudioBase::writeInterleaved(const void* buffer, snd_pcm_uframes_t size)
 {
-	int frames = snd_pcm_writei(getDeviceStructure(), buffer, size);
+	int frames = snd_pcm_writei(soundDevice, buffer, size);
 
 	if(frames < 0)
 		recoverStream(frames, 0);
@@ -112,13 +100,37 @@ snd_pcm_sframes_t AudioBase::writeInterleaved(const void* buffer, snd_pcm_uframe
 
 snd_pcm_sframes_t AudioBase::writeNonInterleaved(void** buffer, snd_pcm_uframes_t size)
 {
-	return snd_pcm_writen(getDeviceStructure(), buffer, size);
+	int frames = snd_pcm_writen(soundDevice, buffer, size);
+
+	if(frames < 0)
+		recoverStream(frames, 0);
+
+	return frames;
+}
+
+snd_pcm_sframes_t AudioBase::write(void* buffer, snd_pcm_uframes_t size)
+{
+	auto access = getAccess();
+	snd_pcm_sframes_t frames {};
+
+	if( (access == SND_PCM_ACCESS_MMAP_INTERLEAVED) ||
+	(access == SND_PCM_ACCESS_RW_INTERLEAVED) )
+		frames =writeInterleaved(buffer, size);
+
+	else if ( (access == SND_PCM_ACCESS_RW_NONINTERLEAVED) ||
+	(access == SND_PCM_ACCESS_MMAP_NONINTERLEAVED) )
+		frames = writeNonInterleaved(&buffer, size);
+
+	else
+		abort();
+
+	return frames;
 }
 
 
 void AudioBase::recoverStream(int err, int silent)
 {
-	int _err = snd_pcm_recover(getDeviceStructure(), err, silent);
+	int _err = snd_pcm_recover(soundDevice, err, silent);
 	if(_err < 0)
 		abort();
 }
@@ -126,7 +138,7 @@ void AudioBase::recoverStream(int err, int silent)
 
 void AudioBase::stopPresentingFrames()
 {
-	int err = snd_pcm_drain(getDeviceStructure());
+	int err = snd_pcm_drain(soundDevice);
 	if(err < 0)
 		abort();
 }
@@ -168,10 +180,14 @@ unsigned int AudioBase::getRate() const
 }
 
 
-snd_pcm_access_t AudioBase::getAccess() const
+snd_pcm_access_t AudioBase::getAccess()
 {
-	snd_pcm_access_t access;
+	snd_pcm_access_t access {};
 	snd_pcm_hw_params_get_access(hwParams, &access);
+
+	if(!((access >= 0) && (access <= SND_PCM_ACCESS_LAST)))
+		abort(static_cast<int>(access));
+
 	return access;
 }
 
@@ -184,4 +200,4 @@ AudioBase::~AudioBase()
 
 }
 
-} /* namespace Sound */
+} /* namespace Audio */
