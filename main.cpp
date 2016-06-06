@@ -10,12 +10,16 @@
 #include <regex>
 #include "WavPlayer.h"
 
-
+#include <functional>
 /**
  * \ Wav player paramters
  */
 Audio::AudioParam wavParam {
-	SND_PCM_STREAM_PLAYBACK, {}, {}, {}, 44
+	SND_PCM_STREAM_PLAYBACK, SND_PCM_ACCESS_RW_INTERLEAVED, {}, {}, 44
+};
+
+Audio::AudioParam recoredParam {
+	SND_PCM_STREAM_CAPTURE, SND_PCM_ACCESS_RW_INTERLEAVED, SND_PCM_FORMAT_S16_LE, Audio::Channels::stereo, 44100
 };
 
 
@@ -36,6 +40,59 @@ bool isWavExtension(std::string& filename)
 }
 
 
+
+
+/*
+ * replace function pointers
+ */
+using namespace std::placeholders;
+class A
+{
+	std::once_flag chooseWriteFunction;
+	std::function<void(char*, size_t)> f ;
+
+public:
+	int writeI(char* buf, size_t len)
+	{
+		std::cout <<"write i" << std::endl;
+	}
+
+	int writeNI(char* buf, size_t len)
+	{
+		std::cout <<"write ni" << std::endl;
+	}
+
+	void checkStuff()
+	{
+
+		f = [=](char* buf, size_t len) {
+		    return this->writeNI(buf, len);
+		};
+
+
+		f = [=](char* buf, size_t len) {
+		    return this->writeI(buf, len);
+		};
+
+	}
+
+	void write(char * buf, size_t len)
+	{
+		//std::call_once(chooseWriteFunction, [](){ this->checkStuff(); });
+
+		f(buf, len);
+	}
+};
+//
+//int main()
+//{
+//	char msg[] = "spafpfhefwe\0";
+//	A a;
+//
+//	a.write(msg, strlen(msg));
+//}
+
+
 int main(int argc, char* argv[])
 {
 	std::cout << "ALSA Aplication Test: " << SND_LIB_VERSION_STR << std::endl;
@@ -53,8 +110,8 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	std::string filename{argv[1]};
 	auto* filenamep = argv[1];
+	std::string filename{filenamep};
 	std::unique_ptr<Audio::Player> player;
 
 	if(isWavExtension(filename))
@@ -72,7 +129,18 @@ int main(int argc, char* argv[])
 		player.get()->play(filenamep);
 	std::cout << "stop playing" << std::endl;
 
-	return 0;
+//	Audio::Recorder rec {"default", recoredParam};
+//
+//	auto data = rec.read(128);
+//
+//	for (int i = 0; i < 10; i++) {
+//		//std::cout << recorded.first[i] - '0' << " ";
+//		printf("%d ", data.first[i]);
+//	}
+//	return 0;
+
+
+	exit(0);
 }
 
 

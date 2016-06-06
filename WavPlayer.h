@@ -11,7 +11,8 @@
 #include "Player.h"
 #include <memory>
 #include <fstream>
-#include "AudioBase.h"
+
+#include "PcmInterface.h"
 
 namespace Audio {
 
@@ -107,15 +108,17 @@ typedef struct SoundParam {
 /**
  * \ Buffer with smart pointer and size
  */
-typedef struct Buffer
+//template<class T>
+struct Buffer
 {
 	std::unique_ptr<char[]> data;
 	size_t len {};
-} Buffer;
+};
 
 
-class WavPlayer : public Player, public AudioBase
+class WavPlayer : public Player, public PcmInterface
 {
+	AudioParam param;
 	snd_pcm_uframes_t waveSize {};
 	WavFmtHeader fmt {};
 
@@ -156,6 +159,72 @@ public:
 	 */
 	void play(const char* _filename) override;
 };
+
+
+
+
+/**
+ * \ Recored data class
+ */
+class Recorder : public PcmInterface
+{
+	 AudioParam param;
+	 Buffer/*<short>*/ buf;
+
+public:
+	Recorder(const char* _filename, SoundParam _param) : PcmInterface(_filename), param{_param}
+	{
+		pcm->opendev(param.stream);
+		pcm->paramsAllocateDefault();
+		pcm->setAccess(param.access);
+		pcm->setFormat(param.format);
+		pcm->setRateNear(param.rate);
+		pcm->setChannels(param.channels);
+		pcm->setParam();
+		pcm->paramsFree();
+		pcm->prepare();
+	}
+
+
+	std::pair<decltype(buf.data.get()), int> read(int maxFrames)
+	{
+		buf.len = maxFrames * getFormatWidth(param.format) / 8 * 2;
+		buf.data = std::make_unique<char[]>(buf.len);
+
+		snd_pcm_sframes_t frames {};
+
+		for (size_t i = 0; i < buf.len; ++i)
+		{
+			if ((frames = pcm->read(buf.data.get(), maxFrames)) != maxFrames)
+			{
+				std::cout << "frames : " << frames << std::endl;
+				fprintf(stderr, "read from audio interface failed (%s)\n",
+						snd_strerror(frames));
+			}
+		}
+
+		return std::pair<decltype(buf.data.get()), int>{buf.data.get(), buf.len};
+	}
+
+	~Recorder()
+	{
+		pcm->close();
+	}
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 } /* namespace Audio */
 

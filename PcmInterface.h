@@ -5,15 +5,18 @@
  *      Author: michal
  */
 
-#ifndef AUDIOBASE_H_
-#define AUDIOBASE_H_
+#ifndef PCMINTERFACE_H_
+#define PCMINTERFACE_H_
 
 #include <alsa/asoundlib.h>
 #include "Logger.h"
 #include <iostream>
+//#include <thread>
+#include <mutex>
 #include <memory>
 
 namespace Audio {
+
 
 enum class Channels : unsigned int
 {
@@ -21,18 +24,38 @@ enum class Channels : unsigned int
 	stereo = 2
 };
 
+
 /**
  * \ Base class with all configurations methods
  */
-class AudioBase
+class PcmInterface
 {
 	snd_pcm_t* soundDevice { nullptr };
 	snd_pcm_hw_params_t* hwParams { nullptr };
 	const char* name { nullptr };
 
+	//std::once_flag chooseWriteFunction;
+	std::function<snd_pcm_sframes_t(void*, size_t)> writeFunctor;
+
+	bool isInterleaved();
+
+
 public:
 
-	AudioBase(const char* _name);
+	PcmInterface *pcm {this};
+
+	void functionChooser();
+	auto* getDevice()
+	{
+		return soundDevice;
+	}
+
+	auto* getParam()
+	{
+		return hwParams;
+	}
+
+	PcmInterface(const char* _name);
 
 
 	/**
@@ -55,7 +78,25 @@ public:
 	/**
 	 * \ Allocate hardware param memory and set the default values
 	 */
-	void allocateDefault();
+	void paramsAllocateDefault();
+
+
+	/**
+	 * \ Deallocate hardware param memory and set the default values
+	 */
+	void paramsFree();
+
+
+	/**
+	 * \ Prepare
+	 */
+	void prepare();
+
+
+	/**
+	 * \
+	 */
+	int getFormatWidth(snd_pcm_format_t format);
 
 
 	/**
@@ -97,13 +138,32 @@ public:
 	/**
 	 * \
 	 */
-	snd_pcm_sframes_t writeNonInterleaved(void** buffer, snd_pcm_uframes_t size);
+	snd_pcm_sframes_t writeNonInterleaved(void* buffer, snd_pcm_uframes_t size);
 
 
 	/**
 	 * \ Write
 	 */
 	snd_pcm_sframes_t write(void* buffer, snd_pcm_uframes_t size);
+
+
+	/**
+	 * \
+	 */
+	snd_pcm_sframes_t readInterleaved(void* buffer, snd_pcm_uframes_t size);
+
+
+	/**
+	 * \
+	 */
+	snd_pcm_sframes_t readNonInterleaved(void* buffer, snd_pcm_uframes_t size);
+
+
+	/**
+	 * \ Read
+	 */
+	snd_pcm_sframes_t read(void* buffer, snd_pcm_uframes_t size);
+
 
 	/**
 	 * \
@@ -126,7 +186,7 @@ public:
 	/**
 	 * \ Write all parameters
 	 */
-	void start();
+	void setParam();
 
 
 	/**
@@ -158,12 +218,21 @@ public:
 	 */
 	snd_pcm_access_t getAccess();
 
+
+	/**
+	 * \
+	 */
+	void close();
+
+
 	/*
 	 *
 	 */
-	virtual ~AudioBase();
+	virtual ~PcmInterface();
 };
+
+
 
 } /* namespace Audio */
 
-#endif /* AUDIOBASE_H_ */
+#endif /* PCMINTERFACE_H_ */

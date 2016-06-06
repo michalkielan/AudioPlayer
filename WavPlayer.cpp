@@ -10,10 +10,13 @@
 namespace Audio {
 
 
-WavPlayer::WavPlayer(const char *_name, AudioParam param) : AudioBase{ _name }
+WavPlayer::WavPlayer(const char *_name, AudioParam _param) : PcmInterface{ _name }, param{_param}
 {
-	opendev(param.stream);
+	pcm->opendev(param.stream);
+	pcm->paramsAllocateDefault();
 }
+
+
 
 
 bool WavPlayer::isWavFile(std::fstream& file)
@@ -99,8 +102,8 @@ void WavPlayer::load(const char* _filename)
 		}
 	}
 
-	setParams(convertBitsToPcmFormat(fmt.bitsPerSample), SND_PCM_ACCESS_RW_INTERLEAVED,
-			static_cast<Channels>(fmt.channels), static_cast<unsigned short>(fmt.byteRate), 1, 500000);
+	pcm->setParams(convertBitsToPcmFormat(fmt.bitsPerSample), param.access,
+			static_cast<Channels>(fmt.channels), fmt.byteRate, 1, 500000);
 }
 
 
@@ -140,18 +143,20 @@ void WavPlayer::play(const char* _filename)
 
 	load(_filename);
 
+//	pcm->functionChooser();
+
 	if(buf.data.get() != nullptr)
 	{
 		do
 		{
-			frames = write(buf.data.get() + count, waveSize - count);
+			frames = pcm->write(buf.data.get() + count, waveSize - count);
 			count += frames;
 
 		} while (count < waveSize);
 
 		// Wait for playback to completely finish
 		if (count >= waveSize)
-			stopPresentingFrames();
+			pcm->stopPresentingFrames();
 	}
 
 	else
