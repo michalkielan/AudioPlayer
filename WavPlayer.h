@@ -8,16 +8,15 @@
 #ifndef WAVPLAYER_H_
 #define WAVPLAYER_H_
 
-#include "Player.h"
 #include <memory>
 #include <fstream>
-#include "AudioBase.h"
+
+#include "Player.h"
+#include "PcmInterface.h"
 
 namespace Audio {
 
 #pragma pack (1)
-
-
 
 // IFF file header
 typedef struct WavFileHeader
@@ -98,63 +97,112 @@ typedef struct SoundParam {
 	channels {_channels},
 	rate {_rate}
 	{
-
 	};
 
-} AudioParam;
+} SoundParam;
 
 
 /**
  * \ Buffer with smart pointer and size
  */
-typedef struct Buffer
+template<typename T>
+class Buffer
 {
-	std::unique_ptr<char[]> data;
+public:
+	std::unique_ptr<T[]> data;
 	size_t len {};
-} Buffer;
 
 
-class WavPlayer : public Player, public AudioBase
+	Buffer(T* p, size_t _len) : data {p}, len{_len}
+	{
+	}
+
+	Buffer() : data {nullptr}, len{0}
+	{
+	}
+
+	Buffer(const Buffer& b) : Buffer{}
+	{
+	}
+
+	~Buffer()
+	{
+		len = 0;
+		data = nullptr;
+	}
+};
+
+
+class WavPlayer : public Player, public PcmInterface
 {
 	snd_pcm_uframes_t waveSize {};
 	WavFmtHeader fmt {};
+	SoundParam param;
 
 	const char *filename { nullptr };
-	Buffer buf {nullptr, 0};
+	Buffer<char> buf {nullptr, 0};
 	size_t size {};
 
 
 	/**
-	 * \ Check the format of wav file is correct
+	 * \Check if is *.wav file using wav file header
 	 */
-	bool isWavFile(std::fstream& file);
-
-
+	bool isWavFile(std::ifstream& file);
 	/**
-	 * \ Convert unsigned char to enumerated format type
+	 * \ Bits in num ti snd_pcm_format
 	 */
 	snd_pcm_format_t convertBitsToPcmFormat(const unsigned char bits);
 
 
 	/**
-	 * \ load file method
+	 * \ Load file
 	 */
 	void load(const char* _filename);
 
+
+	/**
+	 * \ Open device and allocate different data
+	 */
+	void open();
+
+
+	/**
+	 * \ Close device and free memory
+	 */
+	void close();
 
 
 public:
 
 	/**
-	 * \ Constructor with file name and audio parameters
+	 * \ Constructor call open methods
 	 */
-	WavPlayer(const char *_name, SoundParam param);
+	WavPlayer(const char *_name, SoundParam _param) ;
 
 
 	/**
-	 * \ play method overloaded from player interface
+	 * \ Copy constructor call, default constructor
+	 */
+	WavPlayer(const WavPlayer& wp);
+
+
+	/**
+	 * \ Equal operator overloaded
+	 */
+	WavPlayer& operator=(const WavPlayer& wp);
+
+
+	/**
+	 * \ Destructor close device and deallocate the memory
+	 */
+	~WavPlayer();
+
+
+	/**
+	 * \ Play using the buffer
 	 */
 	void play(const char* _filename) override;
+
 };
 
 } /* namespace Audio */

@@ -6,11 +6,10 @@
  */
 
 #include "Player.h"
-
+#include <iostream>
 namespace Audio {
 
 Player::Player() {
-	// TODO Auto-generated constructor stub
 
 }
 
